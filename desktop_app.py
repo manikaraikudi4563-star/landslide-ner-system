@@ -615,11 +615,18 @@ class LandslideDesktopApp(tk.Tk):
 
         hist_content = ""
         for h in HISTORICAL_LANDSLIDES:
+            dt = h.get('date') or h.get('event_date') or 'Historical Record'
+            dist = h.get('district', 'NER')
+            st = h.get('state', '')
+            cas = h.get('casualties', 0)
+            vol = h.get('volume_m3', 0)
+            trig = h.get('trigger') or h.get('trigger_factor') or 'Heavy Rainfall'
+            dmg = h.get('infrastructure_damage', 'Infrastructure impact recorded.')
             hist_content += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            hist_content += f"📌 {h['name']} ({h['date']})\n"
-            hist_content += f"   Location: {h['district']}, {h['state']} | Fatalities: {h['casualties']} | Volume: {h['volume_m3']:,} m³\n"
-            hist_content += f"   Trigger: {h['trigger']}\n"
-            hist_content += f"   Damage: {h['infrastructure_damage']}\n\n"
+            hist_content += f"📌 {h.get('name', 'Incident')} ({dt})\n"
+            hist_content += f"   Location: {dist}, {st} | Fatalities: {cas} | Volume: {vol:,} m³\n"
+            hist_content += f"   Trigger: {trig}\n"
+            hist_content += f"   Damage: {dmg}\n\n"
 
         hist_box.insert(tk.END, hist_content)
         hist_box.configure(state="disabled")
