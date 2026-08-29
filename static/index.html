@@ -1,0 +1,1272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NER-LEWS | AI-Based Landslide Early Warning & Risk Monitoring System</title>
+  
+  <!-- Modern Typography & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Local Offline GIS & Chart Libraries (Zero External CDN Links Required) -->
+  <link rel="stylesheet" href="/static/vendor/leaflet.css"/>
+  <script src="/static/vendor/leaflet.js"></script>
+  <script src="/static/vendor/chart.umd.min.js"></script>
+
+  <!-- Application Stylesheet -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">🏔️</div>
+      <div class="brand-text">
+        <h1>NER-LEWS <span style="font-weight: 400; font-size: 0.95rem; color: #94a3b8;">| AI Landslide Monitoring System</span></h1>
+        <div class="subtext">North Eastern Region • Indian Himalayan & Indo-Burman Origen</div>
+      </div>
+    </div>
+
+    <!-- Demo Mode Transparency Banner -->
+    <div class="demo-mode-pill">
+      <span class="demo-tag">DEMO MODE</span>
+      <span>SIMULATED OPERATIONAL DATA</span>
+    </div>
+
+    <div class="header-actions">
+      <!-- Offline Network Mode Indicator & Toggle -->
+      <button id="btn-network-toggle" class="btn-network-status online" title="Click to simulate Network Online / Offline toggle">
+        <span class="pulse-dot"></span>
+        <span id="txt-network-mode">ONLINE</span>
+      </button>
+
+      <!-- Last Sync Timestamp & System Health -->
+      <div class="system-meta-badge">
+        <div style="font-size:0.68rem; color:var(--text-muted);">SYSTEM HEALTH</div>
+        <div style="font-size:0.78rem; font-weight:700; color:var(--status-green);" id="header-sys-health">99.8% OPTIMAL</div>
+      </div>
+
+      <div class="system-meta-badge">
+        <div style="font-size:0.68rem; color:var(--text-muted);">LAST SYNC</div>
+        <div style="font-size:0.78rem; font-weight:700; color:var(--accent-cyan);" id="header-last-sync">--:--:--</div>
+      </div>
+
+      <!-- User Role Switcher -->
+      <div class="role-switcher-wrap">
+        <label for="select-user-role" style="font-size:0.68rem; color:var(--text-muted); display:block;">ROLE:</label>
+        <select id="select-user-role" class="role-select">
+          <option value="VIEWER">Public Viewer</option>
+          <option value="FIELD_USER">Field Responder</option>
+          <option value="AUTHORITY" selected>Disaster Authority</option>
+          <option value="ADMIN">System Administrator</option>
+        </select>
+      </div>
+
+      <button id="btn-sync-telemetry" class="btn btn-outline" title="Pull latest sensor stream">
+        🔄 Live Sync
+      </button>
+
+      <button id="btn-open-report-modal" class="btn btn-primary">
+        📢 Report Landslide
+      </button>
+    </div>
+  </header>
+
+  <!-- Global CAP Alert Ticker -->
+  <div class="alert-ticker-bar" id="alert-ticker">
+    <span class="ticker-label">URGENT ADVISORY</span>
+    <div class="ticker-content" id="ticker-text">
+      Monitoring 12 Geotechnical Observatories across Sikkim, Meghalaya, Assam, Manipur, Nagaland, Mizoram, Arunachal & Tripura.
+    </div>
+    <div class="ticker-alert-count" id="ticker-alert-counter">🚨 2 Active CAP Alerts</div>
+  </div>
+
+  <!-- Main Container -->
+  <main class="dashboard-container">
+
+    <!-- KPI Summary Ribbon & Dynamic Regional Risk Counters -->
+    <section class="kpi-ribbon">
+      <div class="glass-panel kpi-card">
+        <div class="kpi-icon">📡</div>
+        <div class="kpi-info">
+          <div class="kpi-val" id="kpi-stations-count">12 / 12</div>
+          <div class="kpi-title">IoT Stations Online</div>
+        </div>
+      </div>
+
+      <div class="glass-panel kpi-card kpi-danger">
+        <div class="kpi-icon">⚠️</div>
+        <div class="kpi-info">
+          <div class="kpi-val" id="kpi-high-risk-count">2</div>
+          <div class="kpi-title">High Hazard Hotspots</div>
+        </div>
+      </div>
+
+      <div class="glass-panel kpi-card kpi-warning">
+        <div class="kpi-icon">🌧️</div>
+        <div class="kpi-info">
+          <div class="kpi-val"><span id="kpi-max-rain">68.4</span> <span style="font-size:0.9rem;">mm</span></div>
+          <div class="kpi-title">Peak 24h Deluge</div>
+        </div>
+      </div>
+
+      <div class="glass-panel kpi-card kpi-success">
+        <div class="kpi-icon">🛡️</div>
+        <div class="kpi-info">
+          <div class="kpi-val" id="kpi-shelters-count">12 Nodes</div>
+          <div class="kpi-title">Smart Shelters</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dynamic Regional Risk Breakdown Counters -->
+    <section class="risk-breakdown-bar glass-panel">
+      <div style="font-size:0.75rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; letter-spacing:0.04em;">
+        Regional Hazard Matrix Distribution:
+      </div>
+      <div class="risk-counters-wrap">
+        <div class="risk-count-pill red"><span class="pill-dot red"></span> Critical: <strong id="cnt-risk-critical">03</strong></div>
+        <div class="risk-count-pill orange"><span class="pill-dot orange"></span> High: <strong id="cnt-risk-high">12</strong></div>
+        <div class="risk-count-pill yellow"><span class="pill-dot yellow"></span> Moderate: <strong id="cnt-risk-mod">28</strong></div>
+        <div class="risk-count-pill green"><span class="pill-dot green"></span> Low: <strong id="cnt-risk-low">104</strong></div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs-wrapper">
+      <button class="nav-tab-btn active" data-tab="tab-gis">
+        🗺️ GIS Command Viewport
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-advanced-suite">
+        ⚡ Advanced Risk & Response (7 Modules)
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-simulation">
+        🧪 AI What-If Simulation Sandbox
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-states">
+        🏔️ 8-State NER Matrix
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-alerts">
+        🚨 Active Warnings & Timeline (<span id="tab-alerts-count">2</span>)
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-evacuation">
+        🏃 Smart Shelter Navigator
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-sensor-health">
+        📡 Sensor Health & Anomalies
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-authority">
+        🛡️ Authority Command
+      </button>
+      <button class="nav-tab-btn" data-tab="tab-history">
+        📜 Disaster Archive & Reports
+      </button>
+    </nav>
+
+    <!-- =========================================================================
+         TAB 1: GIS LIVE COMMAND VIEWPORT (10 LAYERS + WEATHER + EMERGENCY DOCK)
+         ========================================================================= -->
+    <section id="tab-gis" class="tab-pane active">
+      <div class="workspace-grid">
+        
+        <!-- WebGIS Map Column -->
+        <div class="glass-panel map-viewport-wrapper">
+          <div class="map-toolbar">
+            <div class="map-filter-group">
+              <label for="select-state-focus" style="font-size:0.8rem; color:var(--text-secondary); font-weight:600;">State Focus:</label>
+              <select id="select-state-focus" class="map-select">
+                <option value="ALL">All North Eastern Region (NER)</option>
+                <option value="Sikkim">Sikkim (NH-10 & Mangan)</option>
+                <option value="Meghalaya">Meghalaya (Sohra & NH-6)</option>
+                <option value="Assam">Assam (Dima Hasao & Haflong)</option>
+                <option value="Manipur">Manipur (Tupul & NH-37)</option>
+                <option value="Nagaland">Nagaland (Kohima & NH-29)</option>
+                <option value="Mizoram">Mizoram (Aizawl & NH-54)</option>
+                <option value="Arunachal Pradesh">Arunachal Pradesh (Tawang & NH-13)</option>
+                <option value="Tripura">Tripura (Jampui Hills)</option>
+              </select>
+            </div>
+
+            <!-- 10 WebGIS Layers Control Toolbar -->
+            <div class="map-filter-group">
+              <button id="toggle-layer-stations" class="layer-toggle-btn active" title="Toggle Monitoring Stations">📡 Sensors</button>
+              <button id="toggle-layer-corridors" class="layer-toggle-btn active" title="Toggle Highway Infrastructure">🛣️ Highways</button>
+              <button id="toggle-layer-railways" class="layer-toggle-btn active" title="Toggle Railway Corridors">🚆 Railways</button>
+              <button id="toggle-layer-infra" class="layer-toggle-btn active" title="Toggle Bridges, Dams & Power Grid">🏗️ Infra</button>
+              <button id="toggle-layer-shelters" class="layer-toggle-btn active" title="Toggle Smart Shelters">🛡️ Shelters</button>
+              <button id="toggle-layer-sat-change" class="layer-toggle-btn active" title="Toggle Satellite Change Detection Areas">🛰️ Changes</button>
+              <button id="toggle-layer-heatmap" class="layer-toggle-btn" title="Toggle AI Risk Grid Heatmap">🔥 Risk Grid</button>
+              <button id="toggle-layer-historical" class="layer-toggle-btn" title="Toggle Historical Disaster Markers">📜 Historical</button>
+              <button id="toggle-layer-radar" class="layer-toggle-btn" title="Toggle Rainfall Intensity Overlay">🌧️ Radar</button>
+              <button id="btn-basemap-toggle" class="layer-toggle-btn" title="Toggle Satellite Layer">🛰️ Satellite</button>
+            </div>
+          </div>
+
+          <div id="map"></div>
+
+          <!-- Floating Legend -->
+          <div class="map-floating-legend">
+            <div style="font-weight:700; margin-bottom:0.2rem; color:#fff;">Early Warning Tiers</div>
+            <div class="legend-item"><span class="legend-color-dot" style="background:#ef4444;"></span> Red: Critical / Imminent Failure</div>
+            <div class="legend-item"><span class="legend-color-dot" style="background:#f97316;"></span> Orange: Warning / Severe Risk</div>
+            <div class="legend-item"><span class="legend-color-dot" style="background:#f59e0b;"></span> Yellow: Advisory / Elevated Watch</div>
+            <div class="legend-item"><span class="legend-color-dot" style="background:#10b981;"></span> Green: Normal / Stable Equilibrium</div>
+            <div class="legend-item"><span class="legend-color-dot" style="background:#10b981; border:1px solid #fff;"></span> 🛡️ Smart Shelter Node</div>
+            <div class="legend-item"><span class="legend-color-dot" style="background:#eab308;"></span> 🏗️ Monitored Infrastructure</div>
+            <div class="legend-item"><span class="legend-color-dot" style="background:#ec4899;"></span> 🛰️ Satellite Change Polygon</div>
+          </div>
+
+          <!-- FEATURE 5: EMERGENCY RESPONSE PANEL (Docked below map) -->
+          <div class="emergency-response-dock" id="emergency-response-dock">
+            <div class="response-dock-header">
+              <div class="response-title-wrap">
+                <span class="pulse-dot" style="background:#ef4444;"></span>
+                <span style="font-weight:700; font-size:0.88rem; color:#fff;">EMERGENCY RESPONSE DIRECTIVE</span>
+                <span id="resp-risk-badge" class="badge-risk extreme" style="font-size:0.68rem;">CRITICAL HAZARD</span>
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-secondary);">
+                Active Risk Target: <strong id="resp-target-area" style="color:#fff;">Tupul Railway Yard Sentinel (Manipur)</strong>
+              </div>
+            </div>
+
+            <div class="response-dock-grid">
+              <div class="dock-item">
+                <div class="dock-label">Smart Shelter Recommendation</div>
+                <div class="dock-val-highlight" id="resp-shelter-name">Noney District Headquarter Safe Relief Shelter</div>
+                <div class="dock-sub" id="resp-shelter-cap">Suitability Score: 94/100 • 580 Free Slots</div>
+              </div>
+
+              <div class="dock-item">
+                <div class="dock-label">Recommended Safe Route</div>
+                <div class="dock-val-cyan" id="resp-route-dist">2.6 km <span style="font-size:0.72rem; color:var(--text-muted);">(Direct: 1.4 km)</span></div>
+                <div class="dock-sub" id="resp-travel-time">Drive: ~6 mins • Walk: ~49 mins</div>
+              </div>
+
+              <div class="dock-item response-action-col">
+                <div class="dock-label">Civil Protection Directive</div>
+                <div class="dock-directive-text" id="resp-action-text">
+                  Initiate immediate evacuation via designated high-ground ridge route. Avoid valley floor mud deluge.
+                </div>
+              </div>
+
+              <div class="dock-buttons-col">
+                <button id="btn-dock-view-route" class="btn btn-primary" style="font-size:0.78rem; padding:6px 12px; width:100%;">
+                  🗺️ Safe Route
+                </button>
+                <button id="btn-dock-shelter-details" class="btn btn-outline" style="font-size:0.78rem; padding:6px 12px; width:100%;">
+                  🛡️ Shelter Details
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right Side: Station Telemetry, Live Weather & Risk Zone Inspector -->
+        <div class="glass-panel side-inspector-panel">
+          
+          <!-- Inspector Navigation Toggle -->
+          <div class="inspector-tab-strip">
+            <button id="btn-insp-telemetry" class="insp-tab-btn active">📡 Telemetry</button>
+            <button id="btn-insp-riskzone" class="insp-tab-btn">⚠️ Risk Zone & Shelter</button>
+            <button id="btn-insp-weather" class="insp-tab-btn">🌦️ Weather</button>
+          </div>
+
+          <!-- SUB-VIEW 1: LIVE TELEMETRY & MULTI-TIMEFRAME CHART -->
+          <div id="view-telemetry-content">
+            <div class="panel-header" style="margin-top:0.4rem;">
+              <div class="panel-title">
+                <span>📡 Station Inspector</span>
+              </div>
+              <select id="select-active-station" class="map-select" style="max-width:180px;">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+
+            <div>
+              <div id="inspector-station-name" style="font-size: 1.05rem; font-weight:700; color:#fff;">Tupul Railway Yard Sentinel</div>
+              <div id="inspector-station-meta" style="font-size: 0.76rem; color:var(--text-secondary);">Noney District, Manipur • Corridor: NH-37 & Tupul Railway</div>
+            </div>
+
+            <!-- Live Metric Badges -->
+            <div class="sensor-metric-grid">
+              <div class="metric-box">
+                <div class="metric-label">Factor of Safety (Fs)</div>
+                <div class="metric-value" id="val-fs">0.478</div>
+                <div id="status-fs" style="font-size:0.72rem; color:var(--status-red); font-weight:600;">ACTIVE FAILURE</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Pore Water Pressure</div>
+                <div class="metric-value"><span id="val-pwp">33.27</span><span class="metric-unit">kPa</span></div>
+                <div style="font-size:0.72rem; color:var(--status-orange);">Piezometer Rising</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Inclinometer Tilt Rate</div>
+                <div class="metric-value"><span id="val-tilt">0.341</span><span class="metric-unit">mm/hr</span></div>
+                <div style="font-size:0.72rem; color:var(--status-red);">Accelerating Creep</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Soil Volumetric Moisture</div>
+                <div class="metric-value"><span id="val-sm">65.1</span><span class="metric-unit">%</span></div>
+                <div style="font-size:0.72rem; color:var(--text-muted);">TDR Probe Array</div>
+              </div>
+            </div>
+
+            <!-- Multi-Timeframe Telemetry Chart Controls -->
+            <div style="margin-top:0.6rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.35rem;">
+                <span style="font-size:0.78rem; font-weight:600; color:var(--text-secondary);">Sensor Dynamics History</span>
+                
+                <!-- Timeframe Switcher -->
+                <div class="timeframe-btn-group">
+                  <button class="time-btn" data-time="1h">1H</button>
+                  <button class="time-btn" data-time="6h">6H</button>
+                  <button class="time-btn" data-time="12h">12H</button>
+                  <button class="time-btn active" data-time="24h">24H</button>
+                  <button class="time-btn" data-time="7d">7D</button>
+                </div>
+              </div>
+
+              <div class="chart-container-box">
+                <canvas id="telemetryChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Emergency Action & Stress Test -->
+            <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+              <button id="btn-stress-test" class="btn btn-danger" style="flex:1; font-size:0.75rem;">
+                ⚡ Simulate Cloudburst Spike
+              </button>
+              <button id="btn-plan-evac-station" class="btn btn-outline" style="flex:1; font-size:0.75rem;">
+                🏃 Route Evacuation
+              </button>
+            </div>
+          </div>
+
+          <!-- SUB-VIEW 2: RISK ZONE DETAILS, XAI & SMART SHELTER -->
+          <div id="view-riskzone-content" style="display:none;">
+            <div style="margin-top:0.4rem; padding-bottom:0.4rem; border-bottom:1px solid var(--border-glass);">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                  <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-cyan); font-weight:700;">Selected Hazard Hotspot</div>
+                  <h3 id="rz-location-name" style="font-size:1.05rem; font-weight:700; color:#fff; margin-top:2px;">Tupul Railway Yard Sentinel</h3>
+                </div>
+                <span id="rz-risk-badge" class="badge-risk extreme">RED - CRITICAL</span>
+              </div>
+              <div id="rz-location-meta" style="font-size:0.76rem; color:var(--text-secondary); margin-top:2px;">
+                Noney District, Manipur • Elevation: 780m • Lat: 24.7083, Lng: 93.6500
+              </div>
+            </div>
+
+            <!-- Technical Breakdown Grid -->
+            <div class="sensor-metric-grid" style="margin-top:0.6rem;">
+              <div class="metric-box">
+                <div class="metric-label">AI Risk Probability</div>
+                <div class="metric-value" id="rz-ai-prob" style="color:var(--status-red);">94.8%</div>
+                <div style="font-size:0.70rem; color:var(--status-red); font-weight:600;">CRITICAL SUSCEPTIBILITY</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Factor of Safety (Fs)</div>
+                <div class="metric-value" id="rz-fs-val" style="color:var(--status-red);">0.478</div>
+                <div id="rz-fs-status" style="font-size:0.70rem; color:var(--status-red); font-weight:600;">ACTIVE FAILURE</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Rainfall (24h Deluge)</div>
+                <div class="metric-value" id="rz-rain-val">68.4 <span class="metric-unit">mm</span></div>
+                <div style="font-size:0.70rem; color:var(--status-orange);">Breaches I-D Threshold</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Soil Volumetric Moisture</div>
+                <div class="metric-value" id="rz-soil-val">84.2 <span class="metric-unit">%</span></div>
+                <div style="font-size:0.70rem; color:var(--status-orange);">Liquefaction Stage</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Pore-Water Pressure</div>
+                <div class="metric-value" id="rz-pwp-val">33.27 <span class="metric-unit">kPa</span></div>
+                <div style="font-size:0.70rem; color:var(--text-muted);">Excess Hydro-Head</div>
+              </div>
+
+              <div class="metric-box">
+                <div class="metric-label">Ground Movement / Tilt</div>
+                <div class="metric-value" id="rz-tilt-val">0.341 <span class="metric-unit">mm/h</span></div>
+                <div style="font-size:0.70rem; color:var(--status-red);">Accelerating Creep</div>
+              </div>
+            </div>
+
+            <!-- Explainable AI (XAI) Feature Contributions -->
+            <div style="margin-top:0.6rem; background:rgba(255,255,255,0.02); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.65rem;">
+              <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700; margin-bottom:0.35rem;">
+                Explainable AI (XAI) Trigger Contributions
+              </div>
+              <div id="rz-xai-breakdown">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.65rem; margin-top:0.6rem;">
+              <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Critical Infrastructure Vicinity</div>
+              <div id="rz-infrastructure" style="font-size:0.82rem; color:#fff; font-weight:600; margin-top:2px;">
+                🛣️ NH-37 Highway & 🚆 Jiribam-Tupul-Imphal Mountain Railway
+              </div>
+            </div>
+
+            <!-- SMART SHELTER ALLOCATION CARD -->
+            <div class="nearest-shelter-box" style="margin-top:0.65rem;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:0.75rem; font-weight:700; color:var(--status-green); text-transform:uppercase;">🛡️ Smart Recommended Shelter</span>
+                <span id="rz-shelter-avail-badge" class="badge-risk normal" style="font-size:0.65rem;">SCORE: 94/100</span>
+              </div>
+
+              <div id="rz-shelter-name" style="font-size:0.92rem; font-weight:700; color:#fff; margin-top:3px;">
+                Noney District Headquarter Safe Relief Shelter
+              </div>
+              <div id="rz-shelter-details-text" style="font-size:0.75rem; color:#cbd5e1; margin-top:2px;">
+                Noney District • Capacity: 850 (580 Free Slots) • ~2.6 km Road • Multi-Criteria Optimal
+              </div>
+
+              <div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
+                <button id="btn-rz-find-route" class="btn btn-primary" style="flex:1.2; font-size:0.76rem; padding:6px 10px;">
+                  🏃 Find Safe Route
+                </button>
+                <button id="btn-rz-view-shelter" class="btn btn-outline" style="flex:0.8; font-size:0.76rem; padding:6px 8px;">
+                  🛡️ Details
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- SUB-VIEW 3: LIVE WEATHER MODULE -->
+          <div id="view-weather-content" style="display:none;">
+            <div style="margin-top:0.4rem; padding-bottom:0.4rem; border-bottom:1px solid var(--border-glass);">
+              <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--accent-cyan); font-weight:700;">Hydro-Meteorological Telemetry</div>
+              <h3 id="wth-state-name" style="font-size:1.05rem; font-weight:700; color:#fff; margin-top:2px;">Manipur Regional Weather</h3>
+              <div style="font-size:0.75rem; color:var(--text-secondary);">Calibrated with Open-Meteo & IMD</div>
+            </div>
+
+            <div class="weather-grid" style="margin-top:0.75rem;">
+              <div class="weather-card">
+                <div class="weather-label">Current Condition</div>
+                <div class="weather-val-lg" id="wth-condition">🌧️ Heavy Rain</div>
+                <div style="font-size:0.70rem; color:var(--status-orange);" id="wth-trend">Trend: Increasing</div>
+              </div>
+
+              <div class="weather-card">
+                <div class="weather-label">Ambient Temp</div>
+                <div class="weather-val-lg" id="wth-temp">24.2 °C</div>
+                <div style="font-size:0.70rem; color:var(--text-muted);">High Humidity 92%</div>
+              </div>
+
+              <div class="weather-card">
+                <div class="weather-label">1-Hour Deluge</div>
+                <div class="weather-val" id="wth-rain-1h">9.5 mm/hr</div>
+                <div style="font-size:0.70rem; color:var(--accent-cyan);">Tipping Bucket Radar</div>
+              </div>
+
+              <div class="weather-card">
+                <div class="weather-label">6-Hour Cumulative</div>
+                <div class="weather-val" id="wth-rain-6h">36.0 mm</div>
+                <div style="font-size:0.70rem; color:var(--text-muted);">Soil Infiltration Active</div>
+              </div>
+
+              <div class="weather-card">
+                <div class="weather-label">24-Hour Total Rain</div>
+                <div class="weather-val" id="wth-rain-24h">68.0 mm</div>
+                <div style="font-size:0.70rem; color:var(--status-red);">High Threshold Breach</div>
+              </div>
+
+              <div class="weather-card">
+                <div class="weather-label">24-Hour Forecast</div>
+                <div class="weather-val" id="wth-forecast">95.0 mm</div>
+                <div style="font-size:0.70rem; color:var(--status-orange);">Storm Warning Active</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 2: ADVANCED RISK & RESPONSE SUITE (7 MODULES)
+         ========================================================================= -->
+    <section id="tab-advanced-suite" class="tab-pane" style="display:none;">
+      <div class="glass-panel" style="padding:1.25rem;">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; flex-wrap:wrap; gap:0.5rem;">
+          <div>
+            <h2 style="color:#fff; font-size:1.35rem;">⚡ Advanced Risk Analytics & Operational Response</h2>
+            <p style="font-size:0.85rem; color:var(--text-secondary);">
+              Satellite Change Detection • Infrastructure Exposure • Sensor Anomaly Guard • Smart Shelters • Offline Dispatch • Multilingual Alerts
+            </p>
+          </div>
+          <span class="demo-mode-pill"><span class="demo-tag">7 MODULES ACTIVE</span> INTEGRATED SYSTEM</span>
+        </div>
+
+        <div class="adv-grid-container">
+          
+          <!-- MODULE 1: SATELLITE CHANGE DETECTION -->
+          <div class="glass-panel adv-card">
+            <div class="adv-card-header">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span style="font-size:1.2rem;">🛰️</span>
+                <h3 style="color:#fff; font-size:1.05rem;">Satellite Change Detection</h3>
+              </div>
+              <span id="sat-risk-badge" class="badge-risk high">CHANGE: 18.4%</span>
+            </div>
+
+            <div style="font-size:0.78rem; color:#cbd5e1; margin:0.4rem 0;">
+              Location: <strong id="sat-location-name" style="color:#fff;">Tupul Railway Yard Mountain Scarp</strong>
+            </div>
+
+            <!-- Before vs Current Satellite Comparison View -->
+            <div class="sat-compare-box">
+              <div class="sat-view-pane">
+                <div class="sat-pane-label">BEFORE: 2026-05-15</div>
+                <div class="sat-mock-img before" id="sat-img-before">
+                  <div class="sat-overlay-text">🌿 Vegetated Canopy (Stable)</div>
+                </div>
+              </div>
+              <div class="sat-view-pane">
+                <div class="sat-pane-label">CURRENT: 2026-08-20</div>
+                <div class="sat-mock-img current" id="sat-img-current">
+                  <div class="sat-overlay-text">⚠️ 18.4% Bare Scarp Exposed</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:rgba(255,255,255,0.03); padding:0.65rem; border-radius:var(--radius-sm); margin:0.6rem 0; font-size:0.75rem;">
+              <div><strong>Classification:</strong> <span id="sat-classification" style="color:#fca5a5;">Significant Crown Scarp Retrogression</span></div>
+              <div style="color:var(--text-muted); margin-top:2px;">Tension fissure propagation observed along upper highway cut benches.</div>
+            </div>
+
+            <div style="display:flex; gap:0.5rem;">
+              <button id="btn-sat-compare-toggle" class="btn btn-outline" style="flex:1; font-size:0.75rem; padding:6px 10px;">
+                🔄 Toggle Comparison
+              </button>
+              <button id="btn-sat-view-map" class="btn btn-primary" style="flex:1; font-size:0.75rem; padding:6px 10px;">
+                🗺️ View on Map
+              </button>
+            </div>
+          </div>
+
+          <!-- MODULE 2: AFFECTED INFRASTRUCTURE RISK -->
+          <div class="glass-panel adv-card">
+            <div class="adv-card-header">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span style="font-size:1.2rem;">🏗️</span>
+                <h3 style="color:#fff; font-size:1.05rem;">Affected Infrastructure Impact</h3>
+              </div>
+              <span class="badge-risk extreme">4 ASSETS AT RISK</span>
+            </div>
+
+            <p style="font-size:0.75rem; color:var(--text-secondary); margin:0.4rem 0;">
+              Highways, Railway Bridges, Power Lines, and Public Structures in active slide zone:
+            </p>
+
+            <div class="infra-table-wrap">
+              <table class="infra-table" id="table-affected-infra">
+                <thead>
+                  <tr>
+                    <th>Infrastructure</th>
+                    <th>Type</th>
+                    <th>Distance</th>
+                    <th>Risk</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody-infra-list">
+                  <!-- Populated via JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- MODULE 3: SENSOR ANOMALY DETECTION & DATA QUALITY GUARD -->
+          <div class="glass-panel adv-card">
+            <div class="adv-card-header">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span style="font-size:1.2rem;">🛡️</span>
+                <h3 style="color:#fff; font-size:1.05rem;">Sensor Anomaly Detection</h3>
+              </div>
+              <span class="badge-risk extreme" id="badge-anomaly-count">1 ANOMALY ACTIVE</span>
+            </div>
+
+            <div id="anomaly-detail-card" style="background:rgba(239, 68, 68, 0.08); border:1px solid rgba(239, 68, 68, 0.3); border-radius:var(--radius-sm); padding:0.75rem; margin:0.6rem 0;">
+              <div style="display:flex; justify-content:space-between; font-size:0.75rem;">
+                <span style="color:#fca5a5; font-weight:700;">STATION: Noney-04 (Tupul Sentinel)</span>
+                <span style="color:#ef4444; font-weight:800;">SUSPECTED SENSOR ERROR</span>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin:0.5rem 0; font-size:0.75rem;">
+                <div>Previous Reading: <strong style="color:#38bdf8;">72.4%</strong></div>
+                <div>Anomalous Spike: <strong style="color:#ef4444;">999.0%</strong></div>
+              </div>
+              <div style="font-size:0.72rem; color:#cbd5e1;">
+                Reason: Value exceeds physical moisture saturation limit (>100%). Out-of-bounds electrical spike isolated from ML engine.
+              </div>
+            </div>
+
+            <div style="display:flex; gap:0.4rem;">
+              <button id="btn-anom-view" class="btn btn-outline" style="flex:1; font-size:0.72rem; padding:6px 8px;">
+                👁️ View Sensor
+              </button>
+              <button id="btn-anom-ack" class="btn btn-outline" style="flex:1; font-size:0.72rem; padding:6px 8px;">
+                ✓ Acknowledge
+              </button>
+              <button id="btn-anom-maint" class="btn btn-danger" style="flex:1.2; font-size:0.72rem; padding:6px 8px;">
+                🔧 Mark Maintenance
+              </button>
+            </div>
+          </div>
+
+          <!-- MODULE 4: UPGRADED WHAT-IF SIMULATION OVERVIEW -->
+          <div class="glass-panel adv-card">
+            <div class="adv-card-header">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span style="font-size:1.2rem;">🧪</span>
+                <h3 style="color:#fff; font-size:1.05rem;">AI What-If Stress Comparison</h3>
+              </div>
+              <span class="badge-risk high">PREDICTIVE DELTA</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem; margin:0.6rem 0; text-align:center;">
+              <div class="sim-delta-box">
+                <div style="font-size:0.68rem; color:var(--text-muted);">CURRENT RISK</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#f97316;" id="adv-sim-base-risk">HIGH (78%)</div>
+                <div style="font-size:0.68rem; color:var(--text-secondary);">Fs = 1.12</div>
+              </div>
+
+              <div class="sim-delta-box">
+                <div style="font-size:0.68rem; color:var(--text-muted);">STRESS OFFSETS</div>
+                <div style="font-size:0.75rem; font-weight:700; color:#38bdf8; margin-top:2px;">Rain +30%</div>
+                <div style="font-size:0.75rem; font-weight:700; color:#38bdf8;">PWP +15%</div>
+              </div>
+
+              <div class="sim-delta-box highlight">
+                <div style="font-size:0.68rem; color:var(--text-muted);">PREDICTED RESULT</div>
+                <div style="font-size:1.1rem; font-weight:800; color:#ef4444;" id="adv-sim-pred-risk">CRITICAL (91%)</div>
+                <div style="font-size:0.68rem; color:#fca5a5;">Δ +13% Prob (Fs = 0.88)</div>
+              </div>
+            </div>
+
+            <div style="font-size:0.70rem; color:#94a3b8; text-align:center; margin-bottom:0.6rem;">
+              SIMULATION — NOT A REAL-WORLD PREDICTION
+            </div>
+
+            <button id="btn-adv-run-sim" class="btn btn-primary" style="width:100%; font-size:0.75rem; padding:6px 12px;">
+              🧪 Open Interactive Simulation Sandbox
+            </button>
+          </div>
+
+          <!-- MODULE 5: SMART MULTI-CRITERIA SHELTER ALLOCATION -->
+          <div class="glass-panel adv-card">
+            <div class="adv-card-header">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span style="font-size:1.2rem;">🧠</span>
+                <h3 style="color:#fff; font-size:1.05rem;">Smart Shelter Allocation</h3>
+              </div>
+              <span class="badge-risk normal">MCDA OPTIMAL</span>
+            </div>
+
+            <p style="font-size:0.75rem; color:var(--text-secondary); margin:0.4rem 0;">
+              Multi-criteria ranking evaluating Distance, Occupancy %, Surrounding Slope Hazard & Facilities:
+            </p>
+
+            <div id="smart-shelter-rankings" style="display:flex; flex-direction:column; gap:0.5rem;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- MODULE 6: OFFLINE EMERGENCY DISPATCH & STORE-AND-FORWARD -->
+          <div class="glass-panel adv-card">
+            <div class="adv-card-header">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span style="font-size:1.2rem;">📡</span>
+                <h3 style="color:#fff; font-size:1.05rem;">Offline Emergency Communication</h3>
+              </div>
+              <span id="comm-net-pill" class="badge-risk normal">ONLINE</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin:0.6rem 0; font-size:0.75rem;">
+              <div class="metric-box">
+                <div class="metric-label">Pending Stored Queue</div>
+                <div class="metric-value" id="comm-pending-count" style="color:#38bdf8;">0</div>
+                <div style="font-size:0.68rem; color:var(--text-muted);">Store-and-Forward Buffer</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Delivered Dispatches</div>
+                <div class="metric-value" id="comm-delivered-count" style="color:#10b981;">1,420</div>
+                <div style="font-size:0.68rem; color:var(--text-muted);">Authorities & Citizens</div>
+              </div>
+            </div>
+
+            <div style="font-size:0.70rem; color:#f59e0b; margin-bottom:0.5rem;">
+              DEMO DELIVERY — NO REAL SMS / RADIO BROADCAST SENT
+            </div>
+
+            <div style="display:flex; gap:0.4rem;">
+              <button id="btn-comm-toggle-net" class="btn btn-outline" style="flex:1; font-size:0.72rem; padding:6px 8px;">
+                📶 Toggle Network
+              </button>
+              <button id="btn-comm-sync-now" class="btn btn-primary" style="flex:1; font-size:0.72rem; padding:6px 8px;">
+                🔄 Sync Queue
+              </button>
+              <button id="btn-comm-test-alert" class="btn btn-danger" style="flex:1.2; font-size:0.72rem; padding:6px 8px;">
+                🚨 Test Alert
+              </button>
+            </div>
+          </div>
+
+          <!-- MODULE 7: MULTI-LANGUAGE EMERGENCY ALERTS LOCALIZATION -->
+          <div class="glass-panel adv-card" style="grid-column: span 2;">
+            <div class="adv-card-header">
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <span style="font-size:1.2rem;">🌐</span>
+                <h3 style="color:#fff; font-size:1.05rem;">Multi-Language Emergency Alerts (8 NER Languages)</h3>
+              </div>
+              
+              <!-- Language Selector Dropdown -->
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <label for="select-alert-lang" style="font-size:0.75rem; color:var(--text-secondary); font-weight:700;">Language:</label>
+                <select id="select-alert-lang" class="map-select" style="min-width:160px;">
+                  <option value="en">English</option>
+                  <option value="hi">हिन्दी (Hindi)</option>
+                  <option value="as">অসমীয়া (Assamese)</option>
+                  <option value="mni">মৈতৈলোন্ (Manipuri)</option>
+                  <option value="lus">Mizo ṭawng (Mizo)</option>
+                  <option value="kha">Ka Ktien Khasi (Khasi)</option>
+                  <option value="nag">Nagamese</option>
+                  <option value="bn">বাংলা (Bengali)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Translated Emergency Card -->
+            <div class="translated-alert-box" id="translated-alert-container">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 3: AI WHAT-IF SIMULATION SANDBOX
+         ========================================================================= -->
+    <section id="tab-simulation" class="tab-pane" style="display:none;">
+      <div class="glass-panel simulation-container">
+        
+        <!-- Left: Interactive Sliders -->
+        <div class="sim-slider-group">
+          <div style="border-bottom:1px solid var(--border-glass); padding-bottom:0.75rem; margin-bottom:0.5rem;">
+            <h2 style="color:#fff; font-size:1.25rem;">🧪 AI Scenario Stress Sandbox</h2>
+            <p style="font-size:0.82rem; color:var(--text-secondary);">
+              Adjust hydro-meteorological, geotechnical, and tectonic variables to test slope failure thresholds in real time.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="sim-state">NER Target Sub-Region</label>
+            <select id="sim-state" class="form-control">
+              <option value="Manipur">Manipur (Indo-Burman Shale Belt / Tupul)</option>
+              <option value="Meghalaya">Meghalaya (Shillong Plateau / Sohra)</option>
+              <option value="Sikkim">Sikkim (Eastern Himalayas / Teesta Gorge)</option>
+              <option value="Assam">Assam (Dima Hasao Hill Tracts / Haflong)</option>
+              <option value="Nagaland">Nagaland (Kohima Ridges)</option>
+              <option value="Mizoram">Mizoram (Aizawl Fragile Sandstone)</option>
+              <option value="Arunachal Pradesh">Arunachal Pradesh (High Himalayan Slopes)</option>
+              <option value="Tripura">Tripura (Jampui Hills)</option>
+            </select>
+          </div>
+
+          <div class="slider-field">
+            <div class="slider-header">
+              <label for="sim-rain-intensity">Rainfall Intensity (mm/hr)</label>
+              <span class="slider-val" id="val-sim-rain">35 mm/hr</span>
+            </div>
+            <input type="range" id="sim-rain-intensity" min="0" max="120" step="1" value="35">
+          </div>
+
+          <div class="slider-field">
+            <div class="slider-header">
+              <label for="sim-duration">Continuous Storm Duration (Hours)</label>
+              <span class="slider-val" id="val-sim-duration">6.0 hrs</span>
+            </div>
+            <input type="range" id="sim-duration" min="1" max="48" step="0.5" value="6.0">
+          </div>
+
+          <div class="slider-field">
+            <div class="slider-header">
+              <label for="sim-slope">Slope Steepness Angle (β°)</label>
+              <span class="slider-val" id="val-sim-slope">48°</span>
+            </div>
+            <input type="range" id="sim-slope" min="15" max="75" step="1" value="48">
+          </div>
+
+          <div class="slider-field">
+            <div class="slider-header">
+              <label for="sim-pwp">Pore Water Pressure (u in kPa)</label>
+              <span class="slider-val" id="val-sim-pwp">32 kPa</span>
+            </div>
+            <input type="range" id="sim-pwp" min="5" max="65" step="1" value="32">
+          </div>
+
+          <div class="slider-field">
+            <div class="slider-header">
+              <label for="sim-moisture">Soil Moisture Saturation (%)</label>
+              <span class="slider-val" id="val-sim-moisture">82%</span>
+            </div>
+            <input type="range" id="sim-moisture" min="20" max="98" step="1" value="82">
+          </div>
+
+          <div class="slider-field">
+            <div class="slider-header">
+              <label for="sim-seismic">Seismic Ground Motion (kh · g)</label>
+              <span class="slider-val" id="val-sim-seismic">0.05 g</span>
+            </div>
+            <input type="range" id="sim-seismic" min="0.0" max="0.30" step="0.01" value="0.05">
+          </div>
+
+          <div class="form-group">
+            <label for="sim-lithology">Lithology & Geology Class</label>
+            <select id="sim-lithology" class="form-control">
+              <option value="Weak Disang Shale">Weak Disang Shale / Daling Phyllite (High Vulnerability)</option>
+              <option value="Quartzite / Mica Schist">Quartzite / Mica Schist (Moderate Vulnerability)</option>
+              <option value="Sandstone / Limestone">Sandstone / Limestone (Moderate)</option>
+              <option value="Hard Granite / Massive Gneiss">Hard Granite / Massive Gneiss (Low Vulnerability)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Right: Multi-Model Output -->
+        <div class="sim-output-card">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:0.85rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700; letter-spacing:0.05em;">Composite AI & Geotech Prediction</span>
+              <span id="sim-result-badge" class="badge-risk extreme">EXTREME RISK</span>
+            </div>
+
+            <!-- Composite Circular Gauge -->
+            <div class="composite-meter-wrapper">
+              <div class="gauge-circle" id="sim-gauge-circle">
+                <div class="gauge-score" id="sim-composite-score">88.4</div>
+                <div class="gauge-unit">Risk Index</div>
+              </div>
+              <div>
+                <h3 id="sim-composite-tier" style="color:var(--status-red); font-size:1.35rem; margin-bottom:0.2rem;">CRITICAL IMMINENT COLLAPSE</h3>
+                <p id="sim-advisory-text" style="font-size:0.82rem; color:#cbd5e1; line-height:1.4;">
+                  Calculated Factor of Safety (Fs) is below 1.0. Driving shear stress exceeds resisting shear strength. Road cuts will experience rapid translational washouts.
+                </p>
+              </div>
+            </div>
+
+            <!-- Model Sub-Assessments -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem; margin:1rem 0;">
+              <div class="metric-box">
+                <div class="metric-label">Infinite Slope Factor of Safety</div>
+                <div class="metric-value" id="sim-val-fs" style="color:var(--status-red);">0.91</div>
+                <div id="sim-fs-text" style="font-size:0.72rem; color:var(--status-red); font-weight:600;">ACTIVE FAILURE</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Rainfall I-D Threshold Breach</div>
+                <div class="metric-value" id="sim-val-id" style="color:var(--status-red);">142%</div>
+                <div id="sim-id-text" style="font-size:0.72rem; color:var(--status-red); font-weight:600;">THRESHOLD BREACHED</div>
+              </div>
+            </div>
+
+            <!-- Explainable AI Factor Contributions -->
+            <div style="margin-top:1rem;">
+              <div style="font-size:0.8rem; font-weight:700; color:var(--text-secondary); text-transform:uppercase; margin-bottom:0.5rem;">
+                Explainable AI Contributing Factors
+              </div>
+              <div id="sim-factor-bars">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--border-glass); display:flex; justify-content:flex-end;">
+            <button id="btn-export-sim-bulletin" class="btn btn-primary">
+              📋 Generate Emergency Action Bulletin
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 4: 8-STATE NER VULNERABILITY MATRIX
+         ========================================================================= -->
+    <section id="tab-states" class="tab-pane" style="display:none;">
+      <div class="glass-panel" style="padding:1.25rem;">
+        <div style="margin-bottom:1rem;">
+          <h2 style="color:#fff; font-size:1.25rem;">🏔️ North Eastern Region Geotechnical & Terrain Profiles</h2>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">
+            State-by-state geological lithology, seismic hazard classification, annual monsoonal precipitation, and critical landslide hotspots.
+          </p>
+        </div>
+
+        <div class="state-cards-grid" id="states-grid-container">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 5: ACTIVE CAP ALERTS & CHRONOLOGICAL EVENT TIMELINE
+         ========================================================================= -->
+    <section id="tab-alerts" class="tab-pane" style="display:none;">
+      <div class="glass-panel" style="padding:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+          <div>
+            <h2 style="color:#fff; font-size:1.25rem;">🚨 Common Alerting Protocol (CAP v1.2) Early Warnings</h2>
+            <p style="font-size:0.85rem; color:var(--text-secondary);">
+              Official early warning alerts synchronized with State Disaster Management Authorities (SDMAs) and NDRF Battalions.
+            </p>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1.5fr 1fr; gap:1.25rem;">
+          <!-- Left: Active Alert Cards -->
+          <div>
+            <h3 style="color:#fff; font-size:1.05rem; margin-bottom:0.75rem;">Active Severe Hazard Alerts</h3>
+            <div id="alerts-list-container" style="display:flex; flex-direction:column; gap:1rem;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- Right: Chronological Alert Timeline -->
+          <div class="glass-panel" style="padding:1rem; border:1px solid var(--border-glass);">
+            <h3 style="color:#fff; font-size:1.05rem; margin-bottom:0.5rem;">⏱️ Chronological Event Progression</h3>
+            <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:1rem;">
+              Sequence of sensor spikes, threshold breaches, and model updates leading to current risk state.
+            </p>
+            <div class="alert-timeline-list" id="alert-timeline-container">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 6: SMART SHELTER ALLOCATION NAVIGATOR
+         ========================================================================= -->
+    <section id="tab-evacuation" class="tab-pane" style="display:none;">
+      <div class="glass-panel" style="padding:1.25rem;">
+        <div style="margin-bottom:1.25rem;">
+          <h2 style="color:#fff; font-size:1.25rem;">🏃 Smart Multi-Criteria Shelter Allocation & Route Navigator</h2>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">
+            Find optimal disaster relief shelters in NER based on multi-criteria analysis (Distance, Occupancy, Surrounding Hazard, Route Accessibility & Amenities).
+          </p>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:1.5rem;">
+          <div>
+            <div class="form-group">
+              <label for="evac-select-station">Select Current Location / Monitoring Station</label>
+              <select id="evac-select-station" class="form-control">
+                <!-- Populated via JS -->
+              </select>
+            </div>
+            <button id="btn-calc-evacuation" class="btn btn-primary" style="width:100%;">
+              🧠 Run Smart Shelter Allocation
+            </button>
+
+            <div style="margin-top:1.5rem; background:rgba(255,255,255,0.03); padding:1rem; border-radius:var(--radius-sm); border:1px solid var(--border-glass);">
+              <div style="font-size:0.8rem; font-weight:700; color:var(--accent-cyan); margin-bottom:0.4rem;">Emergency NER Helpline Directory</div>
+              <ul style="font-size:0.78rem; color:#cbd5e1; list-style:none; display:flex; flex-direction:column; gap:0.3rem;">
+                <li>📞 <strong>NDRF Control Room:</strong> 1078 / +91-11-24363260</li>
+                <li>📞 <strong>Sikkim SDMA:</strong> 1070 / +91-3592-202244</li>
+                <li>📞 <strong>Assam ASDMA:</strong> 1070 / 1079</li>
+                <li>📞 <strong>Meghalaya SDMA:</strong> 1070 / +91-364-250100</li>
+                <li>📞 <strong>Manipur SDMA:</strong> 1070 / +91-385-244199</li>
+              </ul>
+            </div>
+          </div>
+
+          <div id="evac-results-container" style="display:flex; flex-direction:column; gap:0.85rem;">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 7: SENSOR NETWORK HEALTH & ANOMALIES
+         ========================================================================= -->
+    <section id="tab-sensor-health" class="tab-pane" style="display:none;">
+      <div class="glass-panel" style="padding:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+          <div>
+            <h2 style="color:#fff; font-size:1.25rem;">📡 Geotechnical IoT Sensor Health & Anomaly Guard</h2>
+            <p style="font-size:0.85rem; color:var(--text-secondary);">
+              Live telemetry health status, solar charge levels, wireless signal telemetry, and AI data-quality anomaly detection.
+            </p>
+          </div>
+        </div>
+
+        <div class="sensor-health-grid" id="sensor-health-container">
+          <!-- Populated via JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 8: AUTHORITY COMMAND CENTER
+         ========================================================================= -->
+    <section id="tab-authority" class="tab-pane" style="display:none;">
+      <div class="glass-panel" style="padding:1.25rem;">
+        <div style="margin-bottom:1.25rem;">
+          <h2 style="color:#fff; font-size:1.25rem;">🛡️ Disaster Authority Command & Incident Verification</h2>
+          <p style="font-size:0.85rem; color:var(--text-secondary);">
+            Operational response queue for State Disaster Response Forces (SDRF), NDRF Battalions, and District Collectors.
+          </p>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+          <div>
+            <h3 style="color:#fff; font-size:1.05rem; margin-bottom:0.75rem;">Active Emergency Dispatch Directives</h3>
+            <div id="auth-directives-container" style="display:flex; flex-direction:column; gap:0.75rem;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <div>
+            <h3 style="color:#fff; font-size:1.05rem; margin-bottom:0.75rem;">Field Incident Verification Queue</h3>
+            <div id="auth-incidents-container" style="display:flex; flex-direction:column; gap:0.75rem;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================================
+         TAB 9: DISASTER ARCHIVE & CITIZEN REPORTS
+         ========================================================================= -->
+    <section id="tab-history" class="tab-pane" style="display:none;">
+      <div class="glass-panel" style="padding:1.25rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+          <div>
+            <h2 style="color:#fff; font-size:1.25rem;">📜 Major Historical Landslides & Citizen Field Reports</h2>
+            <p style="font-size:0.85rem; color:var(--text-secondary);">
+              Geotechnical catalog of benchmark NER disaster events alongside crowdsourced citizen incident verifications.
+            </p>
+          </div>
+          <button id="btn-open-citizen-report-2" class="btn btn-primary">
+            📢 Submit Field Report
+          </button>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.25rem;">
+          <div>
+            <h3 style="color:#fff; font-size:1.05rem; margin-bottom:0.75rem;">Benchmark NER Disasters Catalog</h3>
+            <div id="historical-landslides-container" style="display:flex; flex-direction:column; gap:0.75rem;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <div>
+            <h3 style="color:#fff; font-size:1.05rem; margin-bottom:0.75rem;">Citizen & Field Officer Reports Queue</h3>
+            <div id="citizen-reports-container" style="display:flex; flex-direction:column; gap:0.75rem;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: Citizen Landslide Incident Submission -->
+  <div class="modal-backdrop" id="modal-citizen-report">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 style="color:#fff;">📢 Report Landslide / Slope Failure Incident</h3>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeModal('modal-citizen-report')">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-citizen-report">
+          <div class="form-group">
+            <label for="rep-name">Reporter Name *</label>
+            <input type="text" id="rep-name" class="form-control" required placeholder="e.g. Tenzing Norbu / Inspector Das">
+          </div>
+          <div class="form-group">
+            <label for="rep-contact">Contact Phone Number</label>
+            <input type="tel" id="rep-contact" class="form-control" placeholder="+91-9876543210">
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div class="form-group">
+              <label for="rep-state">State *</label>
+              <select id="rep-state" class="form-control" required>
+                <option value="Manipur">Manipur</option>
+                <option value="Sikkim">Sikkim</option>
+                <option value="Meghalaya">Meghalaya</option>
+                <option value="Assam">Assam</option>
+                <option value="Nagaland">Nagaland</option>
+                <option value="Mizoram">Mizoram</option>
+                <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                <option value="Tripura">Tripura</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="rep-location">Location / Highway Milestone *</label>
+              <input type="text" id="rep-location" class="form-control" required placeholder="e.g. NH-10 29th Mile / Tupul Yard">
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div class="form-group">
+              <label for="rep-lat">Latitude</label>
+              <input type="number" step="0.0001" id="rep-lat" class="form-control" value="24.7083" required>
+            </div>
+            <div class="form-group">
+              <label for="rep-lng">Longitude</label>
+              <input type="number" step="0.0001" id="rep-lng" class="form-control" value="93.6500" required>
+            </div>
+          </div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.75rem;">
+            <div class="form-group">
+              <label for="rep-type">Incident Type</label>
+              <select id="rep-type" class="form-control">
+                <option value="Landslide">Landslide (Debris Slide)</option>
+                <option value="Ground Crack">Ground Crack / Tension Crack</option>
+                <option value="Rockfall">Rockfall / Topple</option>
+                <option value="Road Blockage">Highway Mud Flow Blockage</option>
+                <option value="Slope Movement">Translational Slope Sinking</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="rep-size">Estimated Debris Volume</label>
+              <select id="rep-size" class="form-control">
+                <option value="Small (< 500 m³)">Small (< 500 m³)</option>
+                <option value="Medium (500 - 10,000 m³)">Medium (500 - 10,000 m³)</option>
+                <option value="Major Disaster (> 10,000 m³)">Major Disaster (> 10,000 m³)</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex; gap:1.5rem; margin:0.5rem 0;">
+            <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.85rem; color:#fff; cursor:pointer;">
+              <input type="checkbox" id="rep-blocked" checked> 🚨 Road / Highway Blocked
+            </label>
+            <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.85rem; color:#fff; cursor:pointer;">
+              <input type="checkbox" id="rep-casualties"> 🚑 Casualties / Trapped Vehicles
+            </label>
+          </div>
+          <div class="form-group">
+            <label for="rep-desc">Incident Description & Immediate Danger</label>
+            <textarea id="rep-desc" class="form-control" rows="2" placeholder="Describe slope cracking, river damming, or active debris movements..."></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="closeModal('modal-citizen-report')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Submit Verified Report</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SMART SHELTER DETAILS & AMENITIES MATRIX -->
+  <div class="modal-backdrop" id="modal-shelter-details">
+    <div class="modal-dialog" style="max-width:650px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:0.6rem;">
+          <span style="font-size:1.4rem;">🛡️</span>
+          <div>
+            <h3 id="mdl-shelter-name" style="color:#fff; font-size:1.15rem;">Noney District Headquarter Safe Relief Shelter</h3>
+            <div id="mdl-shelter-sub" style="font-size:0.75rem; color:var(--status-green);">● Verified Emergency Relief Node • NER-LEWS Operational Grid</div>
+          </div>
+        </div>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeModal('modal-shelter-details')">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <div style="background:rgba(255,255,255,0.03); border:1px solid var(--border-glass); border-radius:var(--radius-sm); padding:0.85rem; margin-bottom:1rem;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+            <div>
+              <div style="font-size:0.72rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700;">Designated Safe Location</div>
+              <div id="mdl-shelter-location" style="color:#fff; font-size:0.88rem; font-weight:600; margin-top:2px;">Longmai Ward-3, Noney Hill Top, NH-37 Bypass</div>
+              <div id="mdl-shelter-coords" style="font-size:0.75rem; color:var(--text-muted);">Coordinates: 24.7150° N, 93.6620° E • District: Noney, Manipur</div>
+            </div>
+            <span id="mdl-shelter-status-badge" class="badge-risk normal">AVAILABLE</span>
+          </div>
+
+          <!-- Capacity Bar -->
+          <div style="margin-top:0.75rem;">
+            <div style="display:flex; justify-content:space-between; font-size:0.75rem; margin-bottom:0.25rem;">
+              <span style="color:var(--text-secondary);">Shelter Occupancy & Capacity</span>
+              <span id="mdl-shelter-cap-text" style="color:#fff; font-weight:600;">580 / 850 Free Slots (68% Available)</span>
+            </div>
+            <div style="background:rgba(255,255,255,0.08); border-radius:4px; height:8px; overflow:hidden;">
+              <div id="mdl-shelter-cap-bar" style="background:linear-gradient(90deg, #10b981, #06b6d4); height:100%; width:68%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Facilities Matrix -->
+        <div style="margin-bottom:1rem;">
+          <div style="font-size:0.75rem; color:var(--text-secondary); text-transform:uppercase; font-weight:700; margin-bottom:0.5rem;">
+            Verified Emergency Relief Facilities & Life Support
+          </div>
+          <div class="facility-grid" id="mdl-shelter-facilities">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Contact & Authority -->
+        <div style="background:rgba(6, 182, 212, 0.06); border:1px solid rgba(6, 182, 212, 0.2); border-radius:var(--radius-sm); padding:0.85rem;">
+          <div style="font-size:0.72rem; color:var(--accent-cyan); text-transform:uppercase; font-weight:700;">Responding Authority & Emergency Dispatch</div>
+          <div id="mdl-shelter-authority" style="color:#fff; font-size:0.85rem; font-weight:600; margin-top:2px;">
+            Manipur SDMA & Noney District Collectorate / SDRF Post
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:0.5rem;">
+            <span style="font-size:0.78rem; color:#cbd5e1;">Emergency Hotline: <strong id="mdl-shelter-phone" style="color:#10b981;">+91-385-244199</strong></span>
+            <span style="font-size:0.72rem; color:var(--text-muted);">Verified Demo Protocol</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-shelter-details')">Close</button>
+        <button type="button" id="btn-mdl-safe-route" class="btn btn-primary">
+          🏃 Recommended Route to this Shelter
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CAP XML & Official Bulletin Viewer -->
+  <div class="modal-backdrop" id="modal-cap-bulletin">
+    <div class="modal-dialog" style="max-width:800px;">
+      <div class="modal-header">
+        <h3 style="color:#fff;">📜 Official Disaster Bulletin & CAP XML Payload</h3>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeModal('modal-cap-bulletin')">✕</button>
+      </div>
+      <div class="modal-body">
+        <pre id="cap-xml-content" style="background:#090d16; color:#38bdf8; padding:1rem; border-radius:var(--radius-sm); font-family:var(--font-mono); font-size:0.75rem; overflow-x:auto; max-height:400px;"></pre>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modal-cap-bulletin')">Close</button>
+        <button class="btn btn-primary" onclick="window.print()">🖨️ Print Bulletin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript Bundle -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
